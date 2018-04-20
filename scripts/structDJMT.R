@@ -81,6 +81,7 @@ doc.corpus = tm_map(doc.corpus, content_transformer(stri_replace_all_regex)," +"
 
 # Filter only lawsuits that contains the word CLARO S.A.
 claro.corpus = tm_filter(doc.corpus, FUN = function(x) any(grepl("CLARO S[.]?[ ]?A", x)))
+claro.corpus.garbage = tm_filter(doc.corpus, FUN = function(x) any(grepl("CLARO|claro", x)))
 
 # Extract CNJ and number of numerical digits. The number of digits is present so we can kwon if the process is old or new (20 digits from 2010)
 invisible(
@@ -96,3 +97,6 @@ data = tidy(claro.corpus)
 data %>% 
   select(origin, CNJ, digitsCNJ) %>% 
   as.data.table
+
+
+claroGarbage = tidy(claro.corpus)
