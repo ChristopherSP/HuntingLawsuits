@@ -39,7 +39,8 @@ readDocuments = function(file){
 ######################################################################################
 # Read Files
 ######################################################################################
-path = "../DJ/"
+# path = "../DJ/"
+path = "~/Downloads/DJ_Newer/"
 # Get all files names
 filesName = list.files(path)
 files = paste0(path,filesName)
@@ -78,15 +79,17 @@ invisible(gc())
 ######################################################################################
 # Remove multiple blank space
 doc.corpus = tm_map(doc.corpus, content_transformer(stri_replace_all_regex)," +"," ")
+doc.corpus = tm_map(doc.corpus, removePunctuation)
+doc.corpus = tm_map(doc.corpus, content_transformer(tolower))
 
 # Filter only lawsuits that contains the word CLARO S.A.
-claro.corpus = tm_filter(doc.corpus, FUN = function(x) any(grepl("CLARO S[.]?[ ]?A", x)))
-claro.corpus.garbage = tm_filter(doc.corpus, FUN = function(x) any(grepl("CLARO|claro", x)))
+claro.corpus = tm_filter(doc.corpus, FUN = function(x) any(grepl("claro s[ ]?a|claro ltda", x)))
+claro.corpus.garbage = tm_filter(doc.corpus, FUN = function(x) any(grepl("claro", x)))
 
 # Extract CNJ and number of numerical digits. The number of digits is present so we can kwon if the process is old or new (20 digits from 2010)
 invisible(
   sapply(seq_along(claro.corpus), function(idx){
-    meta(claro.corpus[[idx]], tag = "CNJ") <<- stri_replace_all_regex(stri_replace_all_fixed(stri_extract_first_regex(content(claro.corpus[[idx]]),"CNJ: [ 0-9.\\/-]+"),"CNJ: ","")," +","")
+    meta(claro.corpus[[idx]], tag = "CNJ") <<- stri_replace_all_regex(stri_replace_all_fixed(stri_extract_first_regex(content(claro.corpus[[idx]]),"cnj [ 0-9.\\/-]+"),"cnj ","")," +","")
     meta(claro.corpus[[idx]], tag = "digitsCNJ") <<- nchar(stri_replace_all_regex(meta(claro.corpus[[idx]], tag = "CNJ"),"[[:punct:]]",""))
     }))
 
@@ -94,9 +97,11 @@ invisible(
 data = tidy(claro.corpus)
 
 # Selects only the important columns, without the whole text content
-data %>% 
+teste = data %>% 
   select(origin, CNJ, digitsCNJ) %>% 
   as.data.table
 
 
-claroGarbage = tidy(claro.corpus)
+claroGarbage = tidy(claro.corpus.garbage)
+
+write.table(claroGarbage,"~/Downloads/claroGarbage.txt",sep='\t',quote=T,row.names = F)
