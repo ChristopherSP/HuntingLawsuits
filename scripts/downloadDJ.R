@@ -21,7 +21,6 @@ downloadDiarie = function(edition, complementURL){
     download.file(paste0(baseURL,edition,complementURL),paste0("~/Downloads/DJ/",edition,".pdf"))
   },
   error = function(cond){
-    cat("Sem Link: ",edition,"\n")
     return(NA)
   }) 
 }
@@ -38,6 +37,9 @@ newerEditions = editionsVec[selectPattern]
 olderEditions = editionsVec[!selectPattern]
 
 mclapply(newerEditions, downloadDiarie, complementURL = " C1 Tribunal de Justiça.pdf", mc.cores = ncores)
+mclapply(newerEditions, downloadDiarie, complementURL = " C2 Comarcas - Entrância Especial.pdf", mc.cores = ncores)
+mclapply(newerEditions, downloadDiarie, complementURL = " C7 Comarcas - 1ª 2ª e 3ª Entrância.pdf", mc.cores = ncores)
+mclapply(newerEditions, downloadDiarie, complementURL = " C6 Foro Extrajudicial.pdf", mc.cores = ncores)
 mclapply(olderEditions, downloadDiarie, complementURL = ".pdf", mc.cores = ncores)
 
 
