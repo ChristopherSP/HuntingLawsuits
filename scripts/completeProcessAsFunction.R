@@ -23,7 +23,7 @@ structPage = function(page){
 
 getCNJOnReading = function(page){
   cnjs = c("First Document")
-  cnjs = c(cnjs, stri_extract_all_regex(page," \\d+[ ]?[-\\/][ ]?\\d{4}  +|\\d{1,7}-\\d{2}.\\d{4}.\\d[\\.]?\\d{2}.\\d{4}  +| \\d+[ ]?[-\\/][ ]?\\d{4}\\n|\\d{1,7}-\\d{2}.\\d{4}.\\d[\\.]?\\d{2}.\\d{4}\\n",simplify = T))
+  cnjs = c(cnjs, stri_extract_all_regex(page," \\d+[ ]?[-\\/][ ]?\\d{4}  +|\\d{1,7}-\\d{2}.\\d{4}.\\d[\\.]?\\d{2}.\\d{4}  +|\\d{14,20}  +| \\d+[ ]?[-\\/][ ]?\\d{4}\\n|\\d{1,7}-\\d{2}.\\d{4}.\\d[\\.]?\\d{2}.\\d{4}\\n|\\d{14,20}\\n",simplify = T))
   cnjs = stri_replace_all_regex(cnjs,"\\n| ","")
   # cnpjs = c(cnpjs, stri_replace_all_fixed(stri_extract_all_regex(page," \\d+[ ]?[-\\/][ ]?\\d{4}  +")[[1]]," ",""))
   # cnpjs = c(cnpjs, stri_replace_all_regex(stri_extract_all_regex(page,"\\d{1,7}-\\d{2}.\\d{4}.\\d[\\.]?\\d{2}.\\d{4}  +")[[1]],"  +",""))
@@ -43,7 +43,7 @@ readDocuments = function(file){
   # doc = tolower(doc)
   cnjs = getCNJOnReading(doc)
   # Split document by lawsuit
-  doc = strsplit(doc," \\d+[ ]?[-\\/][ ]?\\d{4}  +|\\d{1,7}-\\d{2}.\\d{4}.\\d[\\.]?\\d{2}.\\d{4}  +| \\d+[ ]?[-\\/][ ]?\\d{4}\\n|\\d{1,7}-\\d{2}.\\d{4}.\\d[\\.]?\\d{2}.\\d{4}\\n", perl = T)[[1]]
+  doc = strsplit(doc," \\d+[ ]?[-\\/][ ]?\\d{4}  +|\\d{1,7}-\\d{2}.\\d{4}.\\d[\\.]?\\d{2}.\\d{4}  +|\\d{14,20}  +| \\d+[ ]?[-\\/][ ]?\\d{4}\\n|\\d{1,7}-\\d{2}.\\d{4}.\\d[\\.]?\\d{2}.\\d{4}\\n|\\d{14,20}\\n", perl = T)[[1]]
   # Replace word used to split the documents
   if(length(doc) > 1){
     doc[2:length(doc)] = paste0("smtxdocumentseparationmarker ",cnjs[2:length(doc)],doc[2:length(doc)])
@@ -101,7 +101,10 @@ huntingLawsuits = function(fileName){
   # Transform string to lower case
   doc.corpus = tm_map(doc.corpus, content_transformer(tolower))
   
-  claro.corpus = tm_filter(doc.corpus, FUN = function(x) any(grepl("claro(\\n|\\s)+(s|sa|tv|celular|americel|pré)(\\s|$)", x)))
+  claro.corpus = tm_filter(doc.corpus, FUN = function(x) any(grepl("claro(\\n|\\s)+(s|sa|tv|celular|americel|pré)(\\s|$|\\n)", x)))
+  
+  rm(list = "doc.corpus")
+  invisible(gc())
   
   if(length(claro.corpus)>0){
     claro = tidy(claro.corpus) %>% 
@@ -110,7 +113,7 @@ huntingLawsuits = function(fileName){
     
     claro[, formatedCNJ := ifelse(digitsCNJ>=12  & CNJ!="First Document",stri_pad_left(CNJ,20,'0'),CNJ)]
     
-    write.table(claro,"~/Downloads/claroOutput20180426.txt",sep="\t",quote = T,row.names = F,col.names = F,append = T)
+    write.table(claro,"~/Downloads/claroOutput20180427.txt",sep="\t",quote = T,row.names = F,col.names = F,append = T)
   }
   invisible(gc())
 }
@@ -125,5 +128,5 @@ filesName = list.files(path)
 filesName = sort(filesName, decreasing = T)
 # Apply read function
 ncores = detectCores() - 1
-pbmclapply(filesName, huntingLawsuits,mc.cores = ncores)
+pbmclapply(filesName, huntingLawsuits,mc.cores = ncores, ignore.interactive = T)
 
