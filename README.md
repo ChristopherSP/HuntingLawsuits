@@ -1,4 +1,3 @@
-%md
 # Hunting Lawsuits Challenge
 
 The solution was made on R and there are only two scripts needed in this folder related to the challenge submition: downloadDJ.R and completeProcessAsFunction.R
