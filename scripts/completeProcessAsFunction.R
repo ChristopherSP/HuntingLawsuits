@@ -3,13 +3,21 @@ library(stringi)
 library(pdftools)
 library(tm)
 library(parallel)
-library(doParallel)
 library(tidytext)
 library(dplyr)
 library(pbmcapply)
 
-# Get current script path
-# setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+args = commandArgs(trailingOnly=TRUE)
+
+#################################
+# Check Arguments
+#################################
+if (length(args) != 2) {
+  stop("Error: Two arguments must be provided:\n\t1. PDF diaries folder path\n\t2. Full output txt file path to save the to result", call.=FALSE)
+}
+
+inputFolder = args[1]
+outputFile = args[2]
 
 # Split multicolumn text
 structPage = function(page){
@@ -21,14 +29,11 @@ structPage = function(page){
   return(text)
 }
 
+# Gets CNJ number
 getCNJOnReading = function(page){
   cnjs = c("First Document")
   cnjs = c(cnjs, stri_extract_all_regex(page," \\d+[ ]?[-\\/][ ]?\\d{4}  +|\\d{1,7}-\\d{2}.\\d{4}.\\d[\\.]?\\d{2}.\\d{4}  +|\\d{14,20}  +| \\d+[ ]?[-\\/][ ]?\\d{4}\\n|\\d{1,7}-\\d{2}.\\d{4}.\\d[\\.]?\\d{2}.\\d{4}\\n|\\d{14,20}\\n",simplify = T))
   cnjs = stri_replace_all_regex(cnjs,"\\n| ","")
-  # cnpjs = c(cnpjs, stri_replace_all_fixed(stri_extract_all_regex(page," \\d+[ ]?[-\\/][ ]?\\d{4}  +")[[1]]," ",""))
-  # cnpjs = c(cnpjs, stri_replace_all_regex(stri_extract_all_regex(page,"\\d{1,7}-\\d{2}.\\d{4}.\\d[\\.]?\\d{2}.\\d{4}  +")[[1]],"  +",""))
-  # cnpjs = c(cnpjs, stri_replace_all_regex(stri_extract_all_regex(page," \\d+[ ]?[-\\/][ ]?\\d{4}\\n")[[1]],"\\n| ",""))
-  # cnpjs = c(cnpjs, stri_replace_all_regex(stri_extract_all_regex(page,"\\d{1,7}-\\d{2}.\\d{4}.\\d[\\.]?\\d{2}.\\d{4}\\n")[[1]],"\\n",""))
   return(cnjs[!is.na(cnjs)])
 }
 
@@ -61,19 +66,8 @@ huntingLawsuits = function(fileName){
   digitsCNJ = nchar(stri_replace_all_regex(cnjs,"[[:punct:]]",""))
   docs = splitedDocs$doc
   doc.corpus = VCorpus(VectorSource(docs))
-  # Create a corpus from documents. It's a proper structure to do data mining.
-  # docs = lapply(docs, function(x) VCorpus(VectorSource(x)))
-  ######################################################################################
-  # Creating Corpus and Initial Meta
-  ######################################################################################
-  # Put all corpus together
-  # doc.corpus = docs[[1]]
-  # invisible(
-  #   sapply(2:length(docs), function(idx){
-  #     doc.corpus <<- c(doc.corpus,docs[[idx]])
-  #   }))
-  # 
-  # Remove structure to free memory
+
+  # remove older struct to optimize memory use
   rm(docs)
   invisible(gc())
   
@@ -84,6 +78,7 @@ huntingLawsuits = function(fileName){
     x
   })
   
+  # Create metadata defining CNJ number and how many numerical digits it has
   idx=0
   doc.corpus = tm_map(doc.corpus, function(x){
     idx <<- idx + 1
@@ -101,11 +96,14 @@ huntingLawsuits = function(fileName){
   # Transform string to lower case
   doc.corpus = tm_map(doc.corpus, content_transformer(tolower))
   
+  #Filter Claro documents only
   claro.corpus = tm_filter(doc.corpus, FUN = function(x) any(grepl("claro(\\n|\\s)+(s|sa|tv|celular|americel|pré)(\\s|$|\\n)", x)))
   
+  # remove older struct to optimize memory use
   rm(list = "doc.corpus")
   invisible(gc())
   
+  # Saves claro's important metadata to a file
   if(length(claro.corpus)>0){
     claro = tidy(claro.corpus) %>% 
       select(id, origin, totalChars, CNJ, digitsCNJ) %>% 
@@ -113,20 +111,18 @@ huntingLawsuits = function(fileName){
     
     claro[, formatedCNJ := ifelse(digitsCNJ>=12  & CNJ!="First Document",stri_pad_left(CNJ,20,'0'),CNJ)]
     
-    write.table(claro,"~/Downloads/claroOutput20180427.txt",sep="\t",quote = T,row.names = F,col.names = F,append = T)
+    write.table(claro,outputFile,sep="\t",quote = T,row.names = F,col.names = F,append = T)
   }
   invisible(gc())
 }
 
+path = inputFolder
 
-# path = "../DJ/"
-# year = 2007
-# path = paste0("~/Downloads/DJ_Old/",year,"/")
-path = "~/Downloads/DJ_All/"
 # Get all files names
 filesName = list.files(path)
 filesName = sort(filesName, decreasing = T)
+
 # Apply read function
 ncores = detectCores() - 1
-pbmclapply(filesName, huntingLawsuits,mc.cores = ncores, ignore.interactive = T)
+pbmclapply(filesName, huntingLawsuits, mc.cores = ncores, ignore.interactive = T)
 
